@@ -13,14 +13,12 @@
 2. Move negation inward (Demorgan Law)
 3. Remove double-not.
 4. Standardize variable scope.
-5. The prenex form (obtained by moving all quantifiers to the left of the
-formula.)
+5. The prenex form (obtained by moving all quantifiers to the left of the formula.)
 6. Skolemization for existential quantifiers.
 7. Eliminate universal quantifiers.
 8. Convert to conjunctive normal form
-9. Turn conjunctions into clauses in a set, and rename variables so that no
-clause shares the same variable name.
-10.Rename variables in clauses so that each clause has a unique variable
+9. Turn conjunctions into clauses in a set, and rename variables so that no clause shares the same variable name.
+10. Rename variables in clauses so that each clause has a unique variable
 name.
 
 ```
