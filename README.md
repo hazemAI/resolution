@@ -1,4 +1,4 @@
-# resolution
+# RKR Assignment 1 - resolution
 
 
 ● This assignment will involve working in groups of two members.
