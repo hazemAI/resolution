@@ -26,71 +26,45 @@ from nltk.inference.resolution import ResolutionProverCommand
 from nltk.sem.logic import *
 from nltk.sem import logic
 
+
 def implications_elemination(expr):
-    if isinstance(expr, ImpExpression):
-        return implications_elemination(
-            OrExpression(-expr.first, expr.second)
-        )
-    elif isinstance(expr, (AllExpression, ExistsExpression)):
-        return type(expr)(
-            expr.variable,
-            implications_elemination(expr.term)
-        )
-    elif isinstance(expr, (AndExpression, OrExpression)):
-        return type(expr)(
-            implications_elemination(expr.first),
-            implications_elemination(expr.second)
-        )
-    elif isinstance(expr, NegatedExpression):
-        return NegatedExpression(
-            implications_elemination(expr.term)
-        )
+    if type(expr) == ImpExpression:
+        return implications_elemination(OrExpression(-expr.first, expr.second))
+    elif type(expr) in [AllExpression, ExistsExpression]:
+        return type(expr)(expr.variable, implications_elemination(expr.term))
+    elif type(expr) == NegatedExpression:
+        return NegatedExpression(implications_elemination(expr.term))
+    elif type(expr) in [AndExpression, OrExpression]:
+        return type(expr)(implications_elemination(expr.first), implications_elemination(expr.second))
     else:
         return expr
-
-
+# do this for all the functions
 def demorgan(expr):
-    if isinstance(expr, NegatedExpression):
-        if isinstance(expr.term, AndExpression):
-            return OrExpression(
-                demorgan(
-                    NegatedExpression(expr.term.first)
-                ),
-                demorgan(
-                    NegatedExpression(expr.term.second)
-                )
+    expression_map = {
+        AndExpression: OrExpression,
+        OrExpression: AndExpression,
+        AllExpression: ExistsExpression,
+        ExistsExpression: AllExpression
+    }
+    if type(expr) == NegatedExpression:
+        if type(expr.term) in [AndExpression, OrExpression]:
+            return expression_map[type(expr.term)](
+                demorgan(NegatedExpression(expr.term.first)),
+                demorgan(NegatedExpression(expr.term.second))
             )
-        elif isinstance(expr.term, OrExpression):
-            return AndExpression(
-                demorgan(
-                    NegatedExpression(expr.term.first)
-                ),
-                demorgan(
-                    NegatedExpression(expr.term.second)
-                )
-            )
-        elif isinstance(expr.term, AllExpression):
-            return ExistsExpression(
+        elif type(expr.term) in [AllExpression, ExistsExpression]:
+            return expression_map[type(expr.term)](
                 expr.term.variable,
-                demorgan(
-                    NegatedExpression(expr.term.term)
-                )
-            )
-        elif isinstance(expr.term, ExistsExpression):
-            return AllExpression(
-                expr.term.variable,
-                demorgan(
-                    NegatedExpression(expr.term.term)
-                )
+                demorgan(NegatedExpression(expr.term.term))
             )
         else:
             return expr
-    elif isinstance(expr, (AndExpression, OrExpression)):
+    elif type(expr) in [AndExpression, OrExpression]:
         return type(expr)(
             demorgan(expr.first),
             demorgan(expr.second)
         )
-    elif isinstance(expr, (AllExpression, ExistsExpression)):
+    elif type(expr) in [AllExpression, ExistsExpression]:
         return type(expr)(
             expr.variable,
             demorgan(expr.term)
@@ -100,17 +74,17 @@ def demorgan(expr):
 
 
 def remove_double_negation(expr):
-    if isinstance(expr, NegatedExpression):
-        if isinstance(expr.term, NegatedExpression):
+    if type(expr) == NegatedExpression:
+        if type(expr.term) == NegatedExpression:
             return remove_double_negation(expr.term.term)
         else:
             return NegatedExpression(remove_double_negation(expr.term))
-    elif isinstance(expr, (AndExpression, OrExpression)):
+    elif type(expr) in [AndExpression, OrExpression]:
         return type(expr)(
             remove_double_negation(expr.first),
             remove_double_negation(expr.second)
         )
-    elif isinstance(expr, (AllExpression, ExistsExpression)):
+    elif type(expr) in [AllExpression, ExistsExpression]:
         return type(expr)(
             expr.variable,
             remove_double_negation(expr.term)
@@ -118,41 +92,30 @@ def remove_double_negation(expr):
     else:
         return expr
 
-def variable_standardization(expr, variable_set=None):
-    if variable_set is None:
-        variable_set = set()
-    if isinstance(expr, AllExpression):
+def variable_standardization(expr, variable_list=None):
+    variable_list = variable_list or []
+    alphabet = 'abcdefghijklmnopqrstuvwxyz'
+    
+    if type(expr) in [AllExpression, ExistsExpression]:
         new_var = expr.variable
-        while new_var in variable_set:
-            ascii_value = (ord(new_var.name) - 96) % 26 + 97
-            new_var = Variable(chr(ascii_value))
-        variable_set.add(new_var)
+        while new_var in variable_list:
+            new_var = Variable(alphabet[(alphabet.index(new_var.name) + 1) % 26])
+        if new_var not in variable_list:
+            variable_list.append(new_var)
         if new_var != expr.variable:
             expr = expr.alpha_convert(new_var)
-        return AllExpression(
-            expr.variable,
-            variable_standardization(expr.term, variable_set)
-        )
-    elif isinstance(expr, ExistsExpression):
-        new_var = expr.variable
-        while new_var in variable_set:
-            ascii_value = (ord(new_var.name) - 96) % 26 + 97
-            new_var = Variable(chr(ascii_value))
-        variable_set.add(new_var)
-        if new_var != expr.variable:
-            expr = expr.alpha_convert(new_var)
-        return ExistsExpression(
-            expr.variable,
-            variable_standardization(expr.term, variable_set)
-        )
-    elif isinstance(expr, NegatedExpression):
-        return NegatedExpression(
-            variable_standardization(expr.term, variable_set)
-        )
-    elif isinstance(expr, (AndExpression, OrExpression)):
         return type(expr)(
-            variable_standardization(expr.first, variable_set),
-            variable_standardization(expr.second, variable_set)
+            expr.variable,
+            variable_standardization(expr.term, variable_list)
+        )
+    elif type(expr) == NegatedExpression:
+        return NegatedExpression(
+            variable_standardization(expr.term, variable_list)
+        )
+    elif type(expr) in [AndExpression, OrExpression]:
+        return type(expr)(
+            variable_standardization(expr.first, variable_list),
+            variable_standardization(expr.second, variable_list)
         )
     else:
         return expr
@@ -160,123 +123,88 @@ def variable_standardization(expr, variable_set=None):
 
 def to_pnf(expr):
     def get_quantifiers(expr):
-        if isinstance(expr, AllExpression):
-            term = get_quantifiers(expr.term)
-            return term[0], term[1] + [AllExpression], term[2] + [expr.variable]
-        elif isinstance(expr, ExistsExpression):
-            term = get_quantifiers(expr.term)
-            return term[0], term[1] + [ExistsExpression], term[2] + [expr.variable]
-        elif isinstance(expr, NegatedExpression):
-            term = get_quantifiers(expr.term)
-            return NegatedExpression(term[0]), term[1], term[2]
-        elif isinstance(expr, (AndExpression, OrExpression)):
-            first = get_quantifiers(expr.first)
-            second = get_quantifiers(expr.second)
-            return type(expr)(first[0], second[0]), first[1] + second[1], first[2] + second[2]
+        if type(expr) in [AllExpression, ExistsExpression]:
+            sub_term = get_quantifiers(expr.term)
+            # Append current quantifier and variable to the lists
+            return sub_term[0], sub_term[1] + [type(expr)], sub_term[2] + [expr.variable]
+        elif type(expr) == NegatedExpression:
+            sub_term = get_quantifiers(expr.term)
+            # Negate the sub_term (expression part) and return the quantifiers and variables
+            return NegatedExpression(sub_term[0]), sub_term[1], sub_term[2]
+        elif type(expr) in [AndExpression, OrExpression]:
+            left = get_quantifiers(expr.first)
+            right = get_quantifiers(expr.second)
+            # Merge the terms and lists from both sides of the expression
+            return type(expr)(left[0], right[0]), left[1] + right[1], left[2] + right[2]
         else:
+            # Return the expression and empty lists for base case
             return expr, [], []
 
     expr, quantifiers, variables = get_quantifiers(expr)
-    for quantifier, variable in sorted(zip(quantifiers, variables), key=lambda x: 1 if x[0] == AllExpression else 0):
+    # Sort the quantifiers so that all universal quantifiers come before existential quantifiers
+    for quantifier, variable in sorted(zip(quantifiers, variables),
+                                       key=lambda x: 1 if x[0] == AllExpression else 0):
         expr = quantifier(variable, expr)
     return expr
 
 
-def skolemization(expr, variable_set=None):
-    if variable_set is None:
-        variable_set = set()
-    if isinstance(expr, ExistsExpression):
+def skolemization(expr, variable_list=None):
+    variable_list = variable_list or []
+    if type(expr) == ExistsExpression:
         return skolemization(
-            expr.term.replace(expr.variable, skolem_function(variable_set)),
-            variable_set
+            expr.term.replace(expr.variable, skolem_function(variable_list)),
+            variable_list
         )
-    elif isinstance(expr, AllExpression):
+    elif type(expr) == AllExpression:
         return AllExpression(
             expr.variable,
-            skolemization(expr.term, variable_set.add(expr.variable))
+            skolemization(expr.term, variable_list.append(expr.variable))
         )
-    elif isinstance(expr, (AndExpression, OrExpression)):
+    elif type(expr) in [AndExpression, OrExpression]:
         return type(expr)(
-            skolemization(expr.first, variable_set),
-            skolemization(expr.second, variable_set)
+            skolemization(expr.first, variable_list),
+            skolemization(expr.second, variable_list)
         )
-    elif isinstance(expr, NegatedExpression):
+    elif type(expr) == NegatedExpression:
         return NegatedExpression(
-            skolemization(expr.term, variable_set)
+            skolemization(expr.term, variable_list)
         )
     else:
         return expr
 
 def universal_quantifier_elemination(expr):
-    if isinstance(expr, AllExpression):
+    if type(expr) == AllExpression:
         return universal_quantifier_elemination(expr.term)
     else:
         return expr
 
 
 def to_cnf(expr):
-    if isinstance(expr, OrExpression):
-        if isinstance(expr.first, AndExpression):
-            return AndExpression(
-                to_cnf(
-                    OrExpression(expr.first.first, expr.second)
-                ),
-                to_cnf(
-                    OrExpression(expr.first.second, expr.second)
+    if type(expr) == OrExpression:
+        sub_exprs = [expr.first, expr.second]
+        for i, sub_expr in enumerate(sub_exprs):
+            if type(sub_expr) == AndExpression:
+                other = sub_exprs[1 - i] # A or (B and C) | (B and C) or A
+                return AndExpression(
+                    to_cnf(OrExpression(sub_expr.first, other)), 
+                    to_cnf(OrExpression(sub_expr.second, other))
                 )
-            )
-        elif isinstance(expr.second, AndExpression):
-            return AndExpression(
-                to_cnf(
-                    OrExpression(expr.first, expr.second.first)
-                ),
-                to_cnf(
-                    OrExpression(expr.first, expr.second.second)
-                )
-            )
-        else:
-            return OrExpression(
-                to_cnf(expr.first),
-                to_cnf(expr.second)
-            )
-    elif isinstance(expr, AndExpression):
-        return AndExpression(
-            to_cnf(expr.first),
-            to_cnf(expr.second)
-        )
+        return OrExpression(to_cnf(expr.first), to_cnf(expr.second))
+    elif type(expr) == AndExpression:
+        return AndExpression(to_cnf(expr.first), to_cnf(expr.second))
     else:
         return expr
 
 
+# convertion to clauses is like seperating the lists with ands like (a and b) becomes [a], [b] and seperating the ors with commas like (a or b) becomes [a, b]
 def to_clauses(expr):
-    if isinstance(expr, AndExpression):
+    if type(expr) == AndExpression:
         return to_clauses(expr.first) + to_clauses(expr.second)
-    elif isinstance(expr, OrExpression):
+    elif type(expr) == OrExpression:
         return [to_clauses(expr.first)] + [to_clauses(expr.second)]
     else:
         return [expr]
     
-def unique_var_name(exprs, variable_set=None):
-    if variable_set is None:
-        variable_set = set()
-
-    def rename(expr):
-        if isinstance(expr, AllExpression):
-            new_var = expr.variable
-            while new_var in variable_set:
-                ascii_value = (ord(new_var.name) - 96) % 26 + 97
-                new_var = Variable(chr(ascii_value))
-            variable_set.add(new_var)
-            if new_var != expr.variable:
-                expr = expr.alpha_convert(new_var)
-            return AllExpression(
-                expr.variable,
-                rename(expr.term)
-            )
-        else:
-            return expr
-
-    return [rename(expr) for expr in exprs]
 
 def resolution(kb, goal=None):
     kb = [implications_elemination(e) for e in kb]
@@ -300,7 +228,7 @@ def resolution(kb, goal=None):
         print(i)
                 
     kb = [to_pnf(e) for e in kb]
-    print('\n**************** KB after converting to prenext normal form ****************\n')
+    print('\n**************** KB after converting to prenex normal form ****************\n')
     for i in kb:
         print(i)
         
