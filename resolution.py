@@ -36,37 +36,37 @@ def implications_elemination(expr):
         return expr
 
 
-def move_negation_inwards(expr):
+def demorgan(expr):
     if isinstance(expr, NegatedExpression):
         if isinstance(expr.term, AndExpression):
             return OrExpression(
-                move_negation_inwards(
+                demorgan(
                     NegatedExpression(expr.term.first)
                 ),
-                move_negation_inwards(
+                demorgan(
                     NegatedExpression(expr.term.second)
                 )
             )
         elif isinstance(expr.term, OrExpression):
             return AndExpression(
-                move_negation_inwards(
+                demorgan(
                     NegatedExpression(expr.term.first)
                 ),
-                move_negation_inwards(
+                demorgan(
                     NegatedExpression(expr.term.second)
                 )
             )
         elif isinstance(expr.term, AllExpression):
             return ExistsExpression(
                 expr.term.variable,
-                move_negation_inwards(
+                demorgan(
                     NegatedExpression(expr.term.term)
                 )
             )
         elif isinstance(expr.term, ExistsExpression):
             return AllExpression(
                 expr.term.variable,
-                move_negation_inwards(
+                demorgan(
                     NegatedExpression(expr.term.term)
                 )
             )
@@ -74,13 +74,13 @@ def move_negation_inwards(expr):
             return expr
     elif isinstance(expr, (AndExpression, OrExpression)):
         return type(expr)(
-            move_negation_inwards(expr.first),
-            move_negation_inwards(expr.second)
+            demorgan(expr.first),
+            demorgan(expr.second)
         )
     elif isinstance(expr, (AllExpression, ExistsExpression)):
         return type(expr)(
             expr.variable,
-            move_negation_inwards(expr.term)
+            demorgan(expr.term)
         )
     else:
         return expr
@@ -105,41 +105,41 @@ def remove_double_negation(expr):
     else:
         return expr
 
-def standardize_variables(expr, variable_set=None):
+def variable_standardization(expr, variable_set=None):
     if variable_set is None:
         variable_set = set()
     if isinstance(expr, AllExpression):
         new_var = expr.variable
         while new_var in variable_set:
-            new_val = (ord(new_var.name) - 96) % 26 + 97
-            new_var = Variable(chr(new_val))
+            ascii_value = (ord(new_var.name) - 96) % 26 + 97
+            new_var = Variable(chr(ascii_value))
         variable_set.add(new_var)
         if new_var != expr.variable:
             expr = expr.alpha_convert(new_var)
         return AllExpression(
             expr.variable,
-            standardize_variables(expr.term, variable_set)
+            variable_standardization(expr.term, variable_set)
         )
     elif isinstance(expr, ExistsExpression):
         new_var = expr.variable
         while new_var in variable_set:
-            new_val = (ord(new_var.name) - 96) % 26 + 97
-            new_var = Variable(chr(new_val))
+            ascii_value = (ord(new_var.name) - 96) % 26 + 97
+            new_var = Variable(chr(ascii_value))
         variable_set.add(new_var)
         if new_var != expr.variable:
             expr = expr.alpha_convert(new_var)
         return ExistsExpression(
             expr.variable,
-            standardize_variables(expr.term, variable_set)
+            variable_standardization(expr.term, variable_set)
         )
     elif isinstance(expr, NegatedExpression):
         return NegatedExpression(
-            standardize_variables(expr.term, variable_set)
+            variable_standardization(expr.term, variable_set)
         )
     elif isinstance(expr, (AndExpression, OrExpression)):
         return type(expr)(
-            standardize_variables(expr.first, variable_set),
-            standardize_variables(expr.second, variable_set)
+            variable_standardization(expr.first, variable_set),
+            variable_standardization(expr.second, variable_set)
         )
     else:
         return expr
@@ -235,29 +235,17 @@ def to_cnf(expr):
         return expr
 
 
-def to_clause(expr):
-    def convert(expr):
-        if isinstance(expr, AndExpression):
-            return convert(expr.first) + convert(expr.second)
-        elif isinstance(expr, OrExpression):
-            return [convert(expr.first), convert(expr.second)]
-        else:
-            return [expr]
 
-    def flatten(clauses):
-        flatten_lists = []
-        for clause in clauses:
-            if isinstance(clause, list) and isinstance(clause[0], list):
-                flatten_lists.extend(flatten(clause))
-            elif isinstance(clause, list):
-                flatten_lists.extend(clause)
-            else:
-                flatten_lists.append(clause)
-        return flatten_lists
-
-    return flatten(convert(expr))
-
-def rename_variables(exprs, variable_set=None):
+# convertion to clauses is like seperating the lists with ands like (a and b) becomes [a], [b] and seperating the ors with commas like (a or b) becomes [a, b]
+def to_clauses(expr):
+    if isinstance(expr, AndExpression):
+        return to_clauses(expr.first) + to_clauses(expr.second)
+    elif isinstance(expr, OrExpression):
+        return [to_clauses(expr.first)] + [to_clauses(expr.second)]
+    else:
+        return [expr]
+    
+def unique_var_name(exprs, variable_set=None):
     if variable_set is None:
         variable_set = set()
 
@@ -265,8 +253,8 @@ def rename_variables(exprs, variable_set=None):
         if isinstance(expr, AllExpression):
             new_var = expr.variable
             while new_var in variable_set:
-                new_val = (ord(new_var.name) - 96) % 26 + 97
-                new_var = Variable(chr(new_val))
+                ascii_value = (ord(new_var.name) - 96) % 26 + 97
+                new_var = Variable(chr(ascii_value))
             variable_set.add(new_var)
             if new_var != expr.variable:
                 expr = expr.alpha_convert(new_var)
@@ -281,50 +269,51 @@ def rename_variables(exprs, variable_set=None):
 
 def resolution(kb, goal=None):
     kb = [implications_elemination(e) for e in kb]
-    print('\n**************** KB after implications elemination****************:')
+    print('\n**************** KB after implications elemination ****************\n')
     for i in kb:
-        print('\n', i)
+        print(i)
         
-    kb = [move_negation_inwards(e) for e in kb]
-    print('\n**************** KB after moving negation inwards:')
+    kb = [demorgan(e) for e in kb]
+    print('\n**************** KB after moving negation inwards ****************\n')
     for i in kb:
-        print('\n', i)
+        print(i)
         
     kb = [remove_double_negation(e) for e in kb]
-    print('\n**************** KB after remove double negation:')
+    print('\n**************** KB after removing double negation ****************\n')
     for i in kb:
-        print('\n', i)
+        print(i)
     
-    kb = [standardize_variables(e) for e in kb]
-    print('\n****************KB after standardize variables:')
+    kb = [variable_standardization(e) for e in kb]
+    print('\n**************** KB after variable standardization ****************\n')
     for i in kb:
-        print('\n', i)
+        print(i)
                 
     kb = [to_pnf(e) for e in kb]
-    print('\n**************** KB after to pnf:')
+    print('\n**************** KB after converting to prenext normal form ****************\n')
     for i in kb:
-        print('\n', i)
+        print(i)
         
     kb = [skolemization(e) for e in kb]
-    print('\n**************** KB after skolemization:')
+    print('\n**************** KB after skolemization ****************\n')
     for i in kb:
-        print('\n', i)
+        print(i)
         
     kb = [universal_quantifier_elemination(e) for e in kb]
-    print('\n**************** KB after universal quantifier elemination:')
+    print('\n**************** KB after universal quantifier elemination ****************\n')
     for i in kb:
-        print('\n', i)
+        print(i)
         
     kb = [to_cnf(e) for e in kb]
-    print('\n**************** KB after converting to CNF:')
+    print('\n**************** KB after converting to conjunction normal form ****************\n')
     for i in kb:
-        print('\n', i)
+        print(i)
         
-    kb = [to_clause(e) for e in kb]
-    print('\n**************** KB after converting to clauses:')
+    kb = [to_clauses(e) for e in kb]
+    print('\n**************** KB after converting into clauses ****************\n')
     for i in kb:
-        print('\n', i)
+        print(i)
     return kb
+
 
 read_expr = logic.Expression.fromstring
 
