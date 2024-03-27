@@ -22,23 +22,26 @@
 name.
 
 ```
-from nltk.inference.resolution import ResolutionProverCommand
 from nltk.sem.logic import *
 from nltk.sem import logic
+
 
 
 def implications_elemination(expr):
     if type(expr) == ImpExpression:
         return implications_elemination(OrExpression(-expr.first, expr.second))
+    
     elif type(expr) in [AllExpression, ExistsExpression]:
         return type(expr)(expr.variable, implications_elemination(expr.term))
+    
     elif type(expr) == NegatedExpression:
         return NegatedExpression(implications_elemination(expr.term))
+    
     elif type(expr) in [AndExpression, OrExpression]:
         return type(expr)(implications_elemination(expr.first), implications_elemination(expr.second))
     else:
         return expr
-# do this for all the functions
+
 def demorgan(expr):
     expression_map = {
         AndExpression: OrExpression,
@@ -60,15 +63,10 @@ def demorgan(expr):
         else:
             return expr
     elif type(expr) in [AndExpression, OrExpression]:
-        return type(expr)(
-            demorgan(expr.first),
-            demorgan(expr.second)
-        )
+        return type(expr)(demorgan(expr.first), demorgan(expr.second))
+    
     elif type(expr) in [AllExpression, ExistsExpression]:
-        return type(expr)(
-            expr.variable,
-            demorgan(expr.term)
-        )
+        return type(expr)(expr.variable, demorgan(expr.term))
     else:
         return expr
 
@@ -152,23 +150,15 @@ def skolemization(expr, variable_list=None):
     variable_list = variable_list or []
     if type(expr) == ExistsExpression:
         return skolemization(
-            expr.term.replace(expr.variable, skolem_function(variable_list)),
-            variable_list
-        )
+            expr.term.replace(expr.variable, skolem_function(variable_list)), variable_list)
     elif type(expr) == AllExpression:
-        return AllExpression(
-            expr.variable,
-            skolemization(expr.term, variable_list.append(expr.variable))
-        )
+        return AllExpression(expr.variable,skolemization(expr.term, variable_list.append(expr.variable)))
+    
     elif type(expr) in [AndExpression, OrExpression]:
-        return type(expr)(
-            skolemization(expr.first, variable_list),
-            skolemization(expr.second, variable_list)
-        )
+        return type(expr)(skolemization(expr.first, variable_list), skolemization(expr.second, variable_list))
+    
     elif type(expr) == NegatedExpression:
-        return NegatedExpression(
-            skolemization(expr.term, variable_list)
-        )
+        return NegatedExpression(skolemization(expr.term, variable_list))
     else:
         return expr
 
