@@ -23,7 +23,7 @@ clause shares the same variable name.
 10.Rename variables in clauses so that each clause has a unique variable
 name.
 
-`
+```
 from nltk.inference.resolution import ResolutionProverCommand
 from nltk.sem.logic import *
 from nltk.sem import logic
@@ -342,3 +342,4 @@ goal = 'Kills(Curiosity, Tuna)'
 kb = [read_expr(i) for i in kb]
 
 kb = resolution(kb)
+```
