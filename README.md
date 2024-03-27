@@ -23,17 +23,7 @@ clause shares the same variable name.
 10.Rename variables in clauses so that each clause has a unique variable
 name.
 
-`# # 1. Eliminate implication
-# # 2. Move negation inward (Demorgan Law)
-# # 3. Remove double-not.
-# # 4. Standardize variable scope.
-# # 5. The prenex form (obtained by moving all quantifiers to the left of the formula.)
-# # 6. Skolemization for existential quantifiers.
-# # 7. Eliminate universal quantifiers.
-# # 8. Convert to conjunctive normal form
-# # 9. Turn conjunctions into clauses in a set, and rename variables so that no clause shares the same variable name.
-# # 10. Rename variables in clauses so that each clause has a unique variable name.
-
+`
 from nltk.inference.resolution import ResolutionProverCommand
 from nltk.sem.logic import *
 from nltk.sem import logic
@@ -260,8 +250,6 @@ def to_cnf(expr):
         return expr
 
 
-
-# convertion to clauses is like seperating the lists with ands like (a and b) becomes [a], [b] and seperating the ors with commas like (a or b) becomes [a, b]
 def to_clauses(expr):
     if isinstance(expr, AndExpression):
         return to_clauses(expr.first) + to_clauses(expr.second)
@@ -352,10 +340,5 @@ kb = ['exists x.(Dog(x) & Owns(Jack, x))',
 goal = 'Kills(Curiosity, Tuna)'
 
 kb = [read_expr(i) for i in kb]
-# goal = read_expr(goal)
 
 kb = resolution(kb)
-
-# p = ResolutionProverCommand(read_expr(goal), kb)
-# print(p.prove())
-# print(p.proof())`
